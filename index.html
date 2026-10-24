@@ -606,11 +606,11 @@ const MAXR=30,HOLD=300,CODEC='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
    Đăng ký ExpressTURN (gói Free 1 TB/tháng) tại https://www.expressturn.com/signup
    rồi dán tên đăng nhập + mật khẩu TURN trong trang dashboard vào 2 dòng dưới đây.
    Xem chi tiết: file huong-dan-turn-mien-phi.md */
-const TURN_USER='';                         // dán "turn username" vào đây
-const TURN_PASS='';                         // dán "turn password" vào đây
-const TURN_HOST='relay1.expressturn.com';   // đổi nếu dashboard ghi máy chủ khác
+const TURN_USER='000000002108219756';                         // dán "turn username" vào đây
+const TURN_PASS='yKDuWRCC2v8i8VqT7OP4+V4+8v8=';                         // dán "turn password" vào đây
+const TURN_HOST='free.expressturn.com';   // đổi nếu dashboard ghi máy chủ khác
 const VS_TURN_API='';                       // (tuỳ chọn) link API trả về iceServers, nếu dùng dịch vụ khác
-const VS_TURN=TURN_USER&&TURN_PASS?[{urls:['turn:'+TURN_HOST+':3478?transport=udp','turn:'+TURN_HOST+':3478?transport=tcp','turns:'+TURN_HOST+':443?transport=tcp'],username:TURN_USER,credential:TURN_PASS}]:[];
+const VS_TURN=TURN_USER&&TURN_PASS?[{urls:['turn:'+TURN_HOST+':3478?transport=udp','turn:'+TURN_HOST+':3478?transport=tcp'],username:TURN_USER,credential:TURN_PASS}]:[];
 const STUN=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478','stun:stun.expressturn.com:3478']}];
 const ICE_SERVERS=[...STUN,...VS_TURN];
 
