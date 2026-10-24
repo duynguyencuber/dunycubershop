@@ -385,7 +385,7 @@ const baseShopReview=sr;sr=async()=>{if(!ME)return toast('Vui lòng đăng nhậ
 /* Timer giao diện mới + WCA 15 giây inspection. */
 (()=>{let timerState='ready',inspectStarted=0,solveStarted=0,penalty=0,tick=0;const cleanFmt=ms=>{ms=Math.max(0,Math.round(ms));const m=Math.floor(ms/60000),s=Math.floor(ms/1000)%60,mm=ms%1000;return`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(mm).padStart(3,'0')}`};const stopTick=()=>{clearInterval(tick);tick=0};
 function paint(){const read=$('timerRead'),hint=$('timerHint'),button=$('timerAction');if(!read)return;const now=Date.now();if(timerState==='ready'){read.textContent='00:00.000';read.style.color='#67e8f9';hint.textContent='Nhấn Space để bắt đầu 15 giây inspection';button.textContent='Bắt đầu inspection';return}if(timerState==='inspect'){const elapsed=now-inspectStarted,left=15000-elapsed;read.textContent=left>=0?(left/1000).toFixed(2):elapsed<17000?'+2':'DNF';read.style.color=left>5000?'#facc15':left>=0?'#fb923c':'#f87171';hint.textContent=left>=0?'INSPECTION · Nhấn Space để bắt đầu solve':elapsed<17000?'QUÁ 15 GIÂY · Solve sẽ +2':'QUÁ 17 GIÂY · Lượt này DNF';button.textContent='Bắt đầu solve';return}const t=now-solveStarted+penalty;read.textContent=cleanFmt(t);read.style.color='#67e8f9';hint.textContent=penalty?'SOLVING · Phạt +2 giây':'SOLVING · Nhấn Space để dừng';button.textContent='Dừng & lưu thời gian'}
-function timerCard(){const card=$('v-cuber')?.querySelector('.feat > .box');if(!card||card.id==='wcaTimer')return;card.id='wcaTimer';card.style.cssText='text-align:center;padding:clamp(22px,4vw,40px);overflow:hidden;background:linear-gradient(145deg,rgba(34,211,238,.14),rgba(139,92,246,.22));border-color:rgba(103,232,249,.35)';card.innerHTML='<div id="timerHint" style="color:#d8d5ff;font-weight:700;letter-spacing:.04em;margin-bottom:10px">Nhấn Space để bắt đầu 15 giây inspection</div><div id="timerRead" style="font:800 clamp(48px,11vw,92px)/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.075em;white-space:nowrap;color:#67e8f9;text-shadow:0 0 28px rgba(34,211,238,.35);margin:10px auto 22px">00:00.000</div><div class="row" style="justify-content:center;margin:0"><button class="btn" id="timerAction" onclick="toggleTimer()">Bắt đầu inspection</button><button class="btn ghost" onclick="resetTimer()">Đặt lại</button></div><div style="color:#a3a1d0;font-size:12px;margin-top:14px">WCA: 15.00–16.99 = +2 · từ 17.00 = DNF</div>';paint()}
+function timerCard(){const card=$('v-cuber')?.querySelector('.feat > .box');if(!card||card.id==='wcaTimer')return;card.id='wcaTimer';card.style.cssText='text-align:center;padding:clamp(22px,4vw,40px);overflow:hidden;background:linear-gradient(145deg,rgba(34,211,238,.14),rgba(139,92,246,.22));border-color:rgba(103,232,249,.35)';card.innerHTML='<div id="timerHint" style="color:#d8d5ff;font-weight:700;letter-spacing:.04em;margin-bottom:10px">Nhấn Space để bắt đầu 15 giây inspection</div><div id="timerRead" style="font:800 clamp(48px,11vw,92px)/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.075em;white-space:nowrap;color:#67e8f9;text-shadow:0 0 28px rgba(34,211,238,.35);margin:10px auto 22px">00:00.000</div><div class="row" style="justify-content:center;margin:0"><button class="btn" id="timerAction">Bắt đầu inspection</button><button class="btn ghost" onclick="resetTimer()">Đặt lại</button></div><div style="color:#a3a1d0;font-size:12px;margin-top:14px">WCA: 15.00–16.99 = +2 · từ 17.00 = DNF · Giữ Space đến khi chữ xanh rồi thả để chạy, nhấn Space để dừng</div>';paint()}
 const priorCuber=window.cuber;window.cuber=()=>{priorCuber();timerCard();paint()};
 window.toggleTimer=()=>{if(timerState==='ready'){timerState='inspect';inspectStarted=Date.now();stopTick();tick=setInterval(paint,30);paint();return}if(timerState==='inspect'){const elapsed=Date.now()-inspectStarted;if(elapsed>=17000){stopTick();timerState='ready';toast('DNF — inspection quá 17 giây');if(window.newScramble)newScramble();paint();return}penalty=elapsed>15000?2000:0;timerState='solve';solveStarted=Date.now();paint();return}const result=Date.now()-solveStarted+penalty;stopTick();timerState='ready';const history=ld('dcs_cuber_times',[]);sv('dcs_cuber_times',[...history,result]);toast('Đã lưu '+cleanFmt(result)+(penalty?' (+2)':''));if(window.newScramble)newScramble();cuber()};
 window.resetTimer=()=>{stopTick();timerState='ready';penalty=0;paint()};
@@ -433,7 +433,7 @@ window.renderSolveHistory=()=>{const times=ld('dcs_cuber_times',[]),records=ld('
 })();
 </script><script>
 /* Timer/lịch sử nguyên tử: một lượt solve = một bản ghi time + scramble. */
-(()=>{let mode='ready',started=0,inspection=0,clock=0,plus2=0;const fmt=t=>{t=Math.max(0,Math.round(t));return`${String(Math.floor(t/60000)).padStart(2,'0')}:${String(Math.floor(t/1000)%60).padStart(2,'0')}.${String(Math.floor(t%1000/10)).padStart(2,'0')}`};const active=()=>ld('dcs_active_scramble','')||(($('scrText')||{}).textContent||'').trim();const stop=()=>{clearInterval(clock);clock=0};const paint=()=>{const read=$('timerRead'),hint=$('timerHint'),button=$('timerAction');if(!read)return;const now=Date.now();if(mode==='ready'){read.textContent='00:00.00';hint.textContent='Nhấn Space để bắt đầu 15 giây inspection';button.textContent='Bắt đầu inspection';return}if(mode==='inspection'){const e=now-inspection;read.textContent=e<15000?(Math.max(0,15000-e)/1000).toFixed(2):e<17000?'+2':'DNF';hint.textContent=e<15000?'INSPECTION · Nhấn Space để bắt đầu solve':e<17000?'QUÁ 15 GIÂY · Solve sẽ +2':'QUÁ 17 GIÂY · Lượt này DNF';button.textContent='Bắt đầu solve';return}read.textContent=fmt(now-started+plus2);hint.textContent=plus2?'SOLVING · Phạt +2 giây':'SOLVING · Nhấn Space để dừng';button.textContent='Dừng & lưu thời gian'};const renderAtomic=()=>{const h=$('cubeHistory'),records=ld('dcs_cuber_solves',[]);if(!h)return;h.innerHTML=records.length?records.slice().reverse().map((r,n)=>{const i=records.length-1-n;return`<div class="box" style="margin:8px 0"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><span>#${i+1} · <b class="pr">${fmt(r.time)}</b></span><button class="btn ghost" onclick="showAtomicScramble(${i})">🧩 Xem scramble</button></div><div style="margin-top:8px;color:#c4c0e8;font:13px/1.6 ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.scramble)}</div></div>`}).join(''):'<p>Chưa có lượt giải.</p>'};window.showAtomicScramble=i=>{const s=ld('dcs_cuber_solves',[])[i]?.scramble;if(!s)return toast('Lượt này chưa có scramble');$('cb').innerHTML=`<button class="x" onclick="cl()">✕</button><h2 style="margin-top:0">🧩 Scramble lượt #${i+1}</h2><div class="box" style="font:600 20px/1.7 ui-monospace,monospace;word-break:break-word;color:#67e8f9">${esc(s)}</div>`;$('cm').classList.add('on')};window.toggleTimer=()=>{if(mode==='ready'){mode='inspection';inspection=Date.now();stop();clock=setInterval(paint,25);paint();return}if(mode==='inspection'){const elapsed=Date.now()-inspection;if(elapsed>=17000){stop();mode='ready';toast('DNF — inspection quá 17 giây');newScramble();paint();return}plus2=elapsed>15000?2000:0;mode='solve';started=Date.now();paint();return}const time=Date.now()-started+plus2,scramble=active();stop();mode='ready';if(!scramble){toast('Không tìm thấy scramble — hãy tạo scramble mới rồi giải');paint();return}const records=ld('dcs_cuber_solves',[]);records.push({time,scramble,at:Date.now(),plus2:!!plus2});sv('dcs_cuber_solves',records);sv('dcs_cuber_times',records.map(x=>x.time));toast('Đã lưu thời gian và scramble ✦');newScramble();if(window.cuber)window.cuber();setTimeout(renderAtomic,50)};window.resetTimer=()=>{stop();mode='ready';plus2=0;paint()};const lastCuber=window.cuber;window.cuber=()=>{lastCuber();setTimeout(renderAtomic,80)};
+(()=>{let mode='ready',started=0,inspection=0,clock=0,plus2=0,holdAt=0,skipUp=false;const fmt=t=>{t=Math.max(0,Math.round(t));return`${String(Math.floor(t/60000)).padStart(2,'0')}:${String(Math.floor(t/1000)%60).padStart(2,'0')}.${String(Math.floor(t%1000/10)).padStart(2,'0')}`};const active=()=>ld('dcs_active_scramble','')||(($('scrText')||{}).textContent||'').trim();const stop=()=>{clearInterval(clock);clock=0};const paint=()=>{const read=$('timerRead'),hint=$('timerHint'),button=$('timerAction');if(!read)return;const now=Date.now();read.style.color=(mode==='inspection'&&holdAt)?(now-holdAt>=300?'#22c55e':'#ef4444'):'#67e8f9';if(mode==='ready'){read.textContent='00:00.00';hint.textContent='Chạm nhanh Space (hoặc nút) để bắt đầu inspection';button.textContent='Bắt đầu inspection';return}if(mode==='inspection'){const e=now-inspection;read.textContent=e<15000?(Math.max(0,15000-e)/1000).toFixed(2):e<17000?'+2':'DNF';hint.textContent=holdAt?(now-holdAt>=300?'XANH ✓ · THẢ để bắt đầu solve':'Giữ tiếp…'):(e<15000?'INSPECTION · GIỮ Space đến khi chữ xanh rồi thả':e<17000?'QUÁ 15 GIÂY · Solve sẽ +2 · GIỮ Space rồi thả':'QUÁ 17 GIÂY · Lượt này DNF');button.textContent='Giữ để bắt đầu solve';return}read.textContent=fmt(now-started+plus2);hint.textContent=plus2?'SOLVING · Phạt +2 giây':'SOLVING · Nhấn Space để dừng';button.textContent='Dừng & lưu thời gian'};const renderAtomic=()=>{const h=$('cubeHistory'),records=ld('dcs_cuber_solves',[]);if(!h)return;h.innerHTML=records.length?records.slice().reverse().map((r,n)=>{const i=records.length-1-n;return`<div class="box" style="margin:8px 0"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><span>#${i+1} · <b class="pr">${fmt(r.time)}</b></span><button class="btn ghost" onclick="showAtomicScramble(${i})">🧩 Xem scramble</button></div><div style="margin-top:8px;color:#c4c0e8;font:13px/1.6 ui-monospace,monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.scramble)}</div></div>`}).join(''):'<p>Chưa có lượt giải.</p>'};window.showAtomicScramble=i=>{const s=ld('dcs_cuber_solves',[])[i]?.scramble;if(!s)return toast('Lượt này chưa có scramble');$('cb').innerHTML=`<button class="x" onclick="cl()">✕</button><h2 style="margin-top:0">🧩 Scramble lượt #${i+1}</h2><div class="box" style="font:600 20px/1.7 ui-monospace,monospace;word-break:break-word;color:#67e8f9">${esc(s)}</div>`;$('cm').classList.add('on')};window.toggleTimer=()=>{if(mode==='ready'){mode='inspection';inspection=Date.now();stop();clock=setInterval(paint,25);paint();return}if(mode==='inspection'){const elapsed=Date.now()-inspection;if(elapsed>=17000){stop();mode='ready';toast('DNF — inspection quá 17 giây');newScramble();paint();return}plus2=elapsed>15000?2000:0;mode='solve';started=Date.now();paint();return}const time=Date.now()-started+plus2,scramble=active();stop();mode='ready';if(!scramble){toast('Không tìm thấy scramble — hãy tạo scramble mới rồi giải');paint();return}const records=ld('dcs_cuber_solves',[]);records.push({time,scramble,at:Date.now(),plus2:!!plus2});sv('dcs_cuber_solves',records);sv('dcs_cuber_times',records.map(x=>x.time));toast('Đã lưu thời gian và scramble ✦');newScramble();if(window.cuber)window.cuber();setTimeout(renderAtomic,50)};window.resetTimer=()=>{stop();mode='ready';plus2=0;holdAt=0;paint()};window.tmDown=()=>{if(mode==='solve'){window.toggleTimer();skipUp=true;return}if(mode==='inspection'){holdAt=Date.now();paint()}};window.tmUp=()=>{if(skipUp){skipUp=false;return}if(mode==='ready'){window.toggleTimer();return}if(mode==='inspection'&&holdAt){const ok=Date.now()-holdAt>=300;holdAt=0;if(ok)window.toggleTimer();else paint()}};window.tmCancel=()=>{holdAt=0;skipUp=false;paint()};const lastCuber=window.cuber;window.cuber=()=>{lastCuber();setTimeout(renderAtomic,80)};
 })();
 </script><script>
 /* Chuyển toàn bộ lượt cũ sang lịch sử mới để không mất số lượt khi lưu solve tiếp theo. */
@@ -593,6 +593,470 @@ try{await sd();await DB.doc('products/'+id).set({id,n,t:COMBO,n3:3,p:e.p,o:e.o>e
 const _rpa=window.rpa;window.rpa=function(el){_rpa(el);const g=el.querySelector('.grid');if(g)g.insertAdjacentHTML('beforebegin','<div id="cbx" class="box" style="margin-bottom:16px"></div>');cbr()};
 const _card=window.card;window.card=function(p){let h=_card(p);if(!p||!p.combo||!p.combo.length)return h;const parts=p.combo.map(c=>({q:PR.find(x=>sid(x.id)===sid(c.id)),n:+c.q||1})).filter(x=>x.q),show=parts.slice(0,3),more=parts.length-show.length;if(!show.length)return h;const t=`<div style="display:grid;grid-template-columns:repeat(${show.length},1fr);gap:8px;margin:10px 0 4px">${show.map(x=>`<div style="min-width:0;text-align:center"><div style="background:#fff;border-radius:10px;overflow:hidden;position:relative">${pi(x.q,84)}${x.n>1?`<span style="position:absolute;right:4px;top:4px;background:#0e0828;color:#fff;font-size:12px;font-weight:700;border-radius:99px;padding:1px 7px">×${x.n}</span>`:''}</div><div style="font-size:12px;color:#c7c5ee;margin-top:4px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(x.q.n)}</div></div>`).join('')}</div>${more>0?`<div style="font-size:12px;color:#a3a1d0;text-align:right">+${more} sản phẩm khác trong combo</div>`:''}`;const k=h.indexOf('<h3>');return k<0?h:h.slice(0,k)+t+h.slice(k)};
 const _detail=window.detail;window.detail=function(){_detail();const p=DETAIL;if(!p||!p.combo||!p.combo.length)return;const root=$('v-detail'),anchor=[...root.querySelectorAll('p')].find(x=>x.textContent.includes('Tồn kho'));const r=p.combo.reduce((t,c)=>{const q=PR.find(x=>sid(x.id)===sid(c.id));return t+(q?q.p*c.q:0)},0);const html=`<div class="box" style="margin:12px 0"><b>🎁 Combo gồm:</b><ul style="margin:8px 0 0;padding-left:20px">${p.combo.map(c=>`<li>${esc(nm(c.id))} <b>×${c.q}</b></li>`).join('')}</ul>${r>p.p?`<div style="margin-top:8px;color:#a3a1d0">Mua lẻ: <s>${vnd(r)}</s> · Tiết kiệm <b style="color:#22c55e">${vnd(r-p.p)}</b></div>`:''}</div>`;if(anchor)anchor.insertAdjacentHTML('beforebegin',html);else root.insertAdjacentHTML('beforeend',html)};
+})();
+</script>
+<script>
+/* ===== THI ĐẤU 1v1 QUA VIDEO: 2 người bật cam nhìn thấy nhau, giải LẦN LƯỢT từng người (không kiểm tra gian lận) ===== */
+(()=>{
+if(window.__vsLoaded)return;window.__vsLoaded=1;
+const MAXR=30,HOLD=300,CODEC='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+/* STUN miễn phí + TURN công cộng (dự phòng khi mạng chặn kết nối trực tiếp). Muốn ổn định hơn, hãy thay bằng TURN riêng của bạn. */
+const ICE_SERVERS=[
+ {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']},
+ {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}
+];
+
+/* ---------- Scramble chung ---------- */
+const xmur3=s=>{let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19}return()=>{h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^=h>>>16)>>>0}};
+const mulberry32=a=>()=>{let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296};
+const MV={'2x2':{f:['R','U','F'],n:9},'3x3':{f:['R','L','U','D','F','B'],n:20},'4x4':{f:['R','L','U','D','F','B','Rw','Lw','Uw','Dw','Fw','Bw'],n:40}};
+const AX={R:0,L:0,U:1,D:1,F:2,B:2};
+function makeScr(type,seed){
+ const rng=mulberry32(xmur3(String(seed))()),cfg=MV[type]||MV['3x3'],out=[];let last='',prev='';
+ while(out.length<cfg.n){
+  const f=cfg.f[Math.floor(rng()*cfg.f.length)],b=f[0];
+  if(b===last)continue;
+  if(last&&AX[b]===AX[last]&&b===prev)continue;
+  out.push(f+['',"'",'2'][Math.floor(rng()*3)]);prev=last;last=b;
+ }
+ return out.join(' ');
+}
+/* Thời gian 1 lượt: null = chưa xong, Infinity = DNF. Lấy đúng số đồng hồ của người giải đo được. */
+const tOfDoc=s=>!s?null:s.dnf?Infinity:(s.ms!==undefined?Number(s.ms):null);
+const fin=x=>x!==null&&x!==undefined;
+const fmt=ms=>{
+ if(ms===Infinity)return'DNF';
+ if(ms===null||ms===undefined||isNaN(ms))return'—';
+ const s=ms/1000;
+ return s>=60?Math.floor(s/60)+':'+(s%60).toFixed(2).padStart(5,'0'):s.toFixed(2);
+};
+window.__vsCore={makeScr,fmt};
+
+const fbOK=()=>typeof firebase!=='undefined'&&typeof FA!=='undefined'&&!!FA&&typeof DB!=='undefined'&&!!DB&&typeof MYID!=='undefined'&&!!MYID;
+const TS=()=>firebase.firestore.FieldValue.serverTimestamp();
+const Rr=c=>DB.collection('rooms').doc(c);
+const sub=n=>Rr(S.code).collection(n);
+const rnd=n=>{let s='';const a=new Uint8Array(n);(window.crypto||{getRandomValues:x=>x.forEach((_,i)=>x[i]=Math.random()*256)}).getRandomValues(a);for(const v of a)s+=CODEC[v%CODEC.length];return s};
+const genCode=()=>rnd(4);
+const myName=()=>{let n='Khách';try{if(typeof myNm==='function')n=myNm()}catch(e){}if(n==='Khách')n='Khách-'+String(MYID).slice(0,3).toUpperCase();return String(n).slice(0,24)};
+let S=null;
+
+/* ---------- CSS ---------- */
+const st=document.createElement('style');
+st.textContent=`
+#vsOv{position:fixed;inset:0;z-index:100;display:none;background:radial-gradient(ellipse at 20% 0,#2a1065 0,transparent 55%),radial-gradient(ellipse at 90% 100%,#0a3a6b 0,transparent 50%),#07041a;overflow:auto;padding:max(14px,env(safe-area-inset-top,0px)) 14px 30px;-webkit-user-select:none;user-select:none}
+.vs-wrap{max-width:860px;margin:auto}
+.vs-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.vs-code{font:800 22px ui-monospace,Consolas,monospace;letter-spacing:.18em;color:#67e8f9}
+.vs-meta{color:#a3a1d0;font-size:13px}
+.vs-score{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:10px 0 14px}
+.vs-p{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.13);border-radius:18px;padding:12px 14px;text-align:center}
+.vs-p.me{border-color:rgba(103,232,249,.55);box-shadow:0 0 24px -8px #22d3ee}
+.vs-p.turn{outline:2px solid #facc15}
+.vs-p .n{font-size:14px;color:#d8d5ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vs-p .w{font:800 44px/1.1 ui-monospace,Consolas,monospace}
+.vs-vs{font-weight:800;color:#a3a1d0}
+.vs-stage{background:linear-gradient(145deg,rgba(34,211,238,.12),rgba(139,92,246,.2));border:1px solid rgba(103,232,249,.3);border-radius:24px;padding:clamp(18px,4vw,34px);text-align:center;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:12px}
+.vs-big{font:800 clamp(56px,16vw,120px)/1 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:-.06em;color:#67e8f9;text-shadow:0 0 30px rgba(34,211,238,.4)}
+.vs-big.go{color:#22c55e;text-shadow:0 0 30px rgba(34,197,94,.45)}
+.vs-big.warn{color:#f87171;text-shadow:0 0 30px rgba(248,113,113,.45)}
+.vs-big.dim{color:#c4c0e8;text-shadow:none}
+.vs-scr{font:700 clamp(16px,3.6vw,26px)/1.7 ui-monospace,Consolas,monospace;color:#fff;word-break:break-word;background:rgba(0,0,0,.28);border-radius:16px;padding:12px 14px}
+.vs-hint{color:#c4c0e8;font-size:14px}
+.vs-banner{border-radius:14px;padding:10px 14px;background:rgba(255,255,255,.07);font-weight:600}
+.vs-banner.win{background:rgba(34,197,94,.18);border:1px solid rgba(34,197,94,.5)}
+.vs-banner.lose{background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.45)}
+.vs-banner.hot{background:rgba(250,204,21,.16);border:1px solid rgba(250,204,21,.5)}
+.vs-tap{cursor:pointer;touch-action:manipulation;padding:10px 0}
+.vs-hist{margin-top:14px}
+.vs-hist table{width:100%;border-collapse:collapse;font-size:14px}
+.vs-hist th,.vs-hist td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.1);text-align:center}
+.vs-hist td.win{color:#22c55e;font-weight:700}
+.vs-spin{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.25);border-top-color:#67e8f9;border-radius:50%;animation:vsSp 1s linear infinite;vertical-align:-3px;margin-right:8px}
+@keyframes vsSp{to{transform:rotate(360deg)}}
+.vs-in{font:inherit;color:#ecebff;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:9px 12px}
+.vs-in option{color:#111}
+#vsLobby .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+#timerAction,#timerRead{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+.vs-cams{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 10px}
+.vs-cams.stack{grid-template-columns:1fr}
+.vs-cam{position:relative;aspect-ratio:4/3;background:#05030f;border:1px solid rgba(255,255,255,.14);border-radius:18px;overflow:hidden}
+.vs-cam.me{border-color:rgba(103,232,249,.5)}
+.vs-cam.act{outline:2px solid #facc15}
+.vs-cam video{width:100%;height:100%;object-fit:cover;display:block;background:#05030f}
+.vs-cam video.mir{transform:scaleX(-1)}
+.vs-cl{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.6);padding:2px 10px;border-radius:99px;font-size:12px;max-width:80%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vs-co{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;font-size:13px;line-height:1.5;color:#c4c0e8;background:rgba(5,3,15,.85)}
+.vs-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+.vs-ctl .btn{padding:7px 13px;font-size:13px}
+.vs-ctl .btn.on{outline:2px solid #22c55e}
+`;
+document.head.appendChild(st);
+
+/* ---------- Lobby trong tab Luyện tập ---------- */
+function ensureLobby(){
+ const v=document.getElementById('v-cuber');if(!v||$('vsLobby'))return;
+ let saved='';try{saved=localStorage.getItem('dcs_vs_room')||''}catch(e){}
+ const html=`<div class="box" id="vsLobby" style="margin:16px 0"><h3 style="margin:0 0 6px">⚔️ Thi đấu 1v1 qua video</h3><p style="margin:0 0 8px;color:#c4c0e8;font-size:14px">Hai người vào cùng phòng, bật camera nhìn thấy nhau như gọi video. Cùng 1 scramble, giải <b>lần lượt từng người</b>: người này giải thì người kia xem qua camera. Thời gian nhanh hơn thắng ván.</p>
+ <div class="row"><select id="vsType" class="vs-in"><option value="3x3">3x3</option><option value="2x2">2x2</option><option value="4x4">4x4</option></select>
+ <select id="vsTo" class="vs-in"><option value="2">Ai thắng 2 ván trước (BO3)</option><option value="3" selected>Ai thắng 3 ván trước (BO5)</option><option value="4">Ai thắng 4 ván trước (BO7)</option><option value="1">1 ván quyết định</option></select>
+ <button class="btn" onclick="vsCreate()">Tạo phòng</button></div>
+ <div class="row"><input id="vsCodeIn" class="vs-in" maxlength="4" placeholder="Mã phòng 4 ký tự" style="width:170px;text-transform:uppercase" onkeydown="event.key==='Enter'&&vsJoin()"><button class="btn ghost" onclick="vsJoin()">Vào phòng</button>${saved?`<button class="btn ghost" onclick="vsJoin('${esc(saved)}')">↩ Vào lại phòng ${esc(saved)}</button>`:''}</div></div>`;
+ const feat=v.querySelector('.feat');
+ if(feat)feat.insertAdjacentHTML('beforebegin',html);else v.insertAdjacentHTML('afterbegin',html);
+}
+const prevCuber=window.cuber;
+if(typeof prevCuber==='function')window.cuber=()=>{prevCuber();ensureLobby()};
+setInterval(()=>{if(typeof V!=='undefined'&&V==='cuber')ensureLobby()},800);
+
+/* ---------- Phòng ---------- */
+const errMsg=e=>e&&e.code==='permission-denied'?'Firebase Rules chưa cho phép phòng thi đấu — cần thêm mục rooms (và rooms/{mã}/signal cho video) vào Rules':'Lỗi kết nối: '+((e&&e.message)||e);
+window.vsCreate=async()=>{
+ if(!fbOK())return toast('Thi đấu cần kết nối Firebase');
+ const type=$('vsType').value,firstTo=+$('vsTo').value,scrT=60000;let denied=0;
+ for(let k=0;k<6;k++){
+  const c=genCode();
+  try{await Rr(c).set({code:c,host:MYID,hostName:myName(),guest:null,guestName:'',type,firstTo,scrT,ts:TS()});return enter(c)}
+  catch(e){if(e.code==='permission-denied'){denied++;continue}console.error(e);return toast(errMsg(e))}
+ }
+ toast(denied?errMsg({code:'permission-denied'}):'Không tạo được phòng, thử lại nhé');
+};
+window.vsJoin=async c=>{
+ c=String(c||($('vsCodeIn')&&$('vsCodeIn').value)||'').trim().toUpperCase();
+ if(c.length!==4)return toast('Mã phòng gồm 4 ký tự');
+ if(!fbOK())return toast('Thi đấu cần kết nối Firebase');
+ let d;try{d=await Rr(c).get()}catch(e){return toast(errMsg(e))}
+ if(!d.exists){try{localStorage.removeItem('dcs_vs_room')}catch(e){}return toast('Không tìm thấy phòng '+c)}
+ const r=d.data();
+ if(r.host===MYID||r.guest===MYID)return enter(c);
+ if(r.guest)return toast('Phòng này đã đủ 2 người');
+ try{await Rr(c).update({guest:MYID,guestName:myName()})}catch(e){return toast('Không vào được phòng (có thể vừa có người khác vào)')}
+ enter(c);
+};
+function enter(code){
+ closeLocal();
+ const ses=S={code,room:null,ready:{},solves:{},myLocal:{},startLocal:{},startWall:{},stopping:{},watchT0:{},holdAt:0,unsubs:[],key:'',c:null,timer:0,
+  rtc:{pc:null,callId:'',remoteSet:false,q:{},chain:Promise.resolve(),vTrack:null,aTrack:null,facing:'user',peer:null,started:false,needTap:false,err:'',rs:null}};
+ try{localStorage.setItem('dcs_vs_room',code)}catch(e){}
+ const er=nm=>e=>{console.error('vs lỗi ở',nm,e);if(S===ses){ses.err=(ses.err?ses.err+', ':'')+nm;if(nm==='signal')ses.rtc.err='signal';force();rtcUi()}toast(errMsg(e)+' ['+nm+']')},ref=Rr(code);
+ ses.unsubs.push(ref.onSnapshot(d=>{if(S!==ses)return;ses.room=d.exists?d.data():null;force();maybeStart()},er('rooms/'+code)));
+ for(const n of['ready','solves'])ses.unsubs.push(ref.collection(n).onSnapshot(q=>{if(S!==ses)return;const m={};q.forEach(x=>m[x.id]=x.data());ses[n]=m;force()},er('rooms/'+code+'/'+n)));
+ openOv();buildSkeleton();rtcListen(er('signal'));setStatus();
+ ses.timer=setInterval(tick,40);force();
+}
+function closeLocal(){
+ if(!S)return;clearInterval(S.timer);rtcClose();S.unsubs.forEach(u=>{try{u()}catch(e){}});S=null;
+ const o=$('vsOv');if(o){o.style.display='none';o.innerHTML=''}window.__vsOpen=false;document.body.style.overflow='';
+}
+function openOv(){let o=$('vsOv');if(!o){o=document.createElement('div');o.id='vsOv';document.body.appendChild(o)}o.style.display='block';window.__vsOpen=true;document.body.style.overflow='hidden'}
+window.vsLeave=async()=>{if(!await cf('Rời phòng thi đấu?'))return;try{localStorage.removeItem('dcs_vs_room')}catch(e){}closeLocal();const l=$('vsLobby');if(l)l.remove();ensureLobby()};
+window.vsCopy=()=>{if(!S)return;const l=location.origin+location.pathname+'#vs='+S.code;const done=()=>toast('Đã sao chép link mời');try{navigator.clipboard.writeText(l).then(done,()=>prompt('Sao chép link:',l))}catch(e){prompt('Sao chép link:',l)}};
+
+/* ================= GỌI VIDEO (WebRTC, báo hiệu qua Firestore rooms/{mã}/signal) ================= */
+const R=()=>S&&S.rtc;
+const oppName=()=>{const rm=S&&S.room;if(!rm)return'Đối thủ';return(MYID===rm.host?rm.guestName:rm.hostName)||'Đối thủ'};
+function buildSkeleton(){
+ const o=$('vsOv');if(!o)return;
+ o.innerHTML=`<div class="vs-wrap"><div id="vsTop"></div>
+ <div class="vs-cams" id="vsCams">
+  <div class="vs-cam" id="vsCR"><video id="vsRV" autoplay playsinline onclick="vsTap()"></video><div class="vs-co" id="vsRO">Đang chờ đối thủ…</div><div class="vs-cl" id="vsRL">Đối thủ</div></div>
+  <div class="vs-cam me" id="vsCM"><video id="vsLV" class="mir" autoplay playsinline muted></video><div class="vs-co" id="vsLO">Bấm “Bật camera” để đối thủ nhìn thấy bạn</div><div class="vs-cl">Bạn</div></div>
+ </div>
+ <div class="vs-ctl"><button class="btn" id="vsBCam" onclick="vsCam()">📷 Bật camera</button><button class="btn ghost" id="vsBMic" onclick="vsMic()">🎤 Bật mic</button><button class="btn ghost" onclick="vsFlip()">🔄 Đổi camera</button><button class="btn ghost" onclick="vsBig()">⤢ Phóng to</button><button class="btn ghost" onclick="vsRetry()">🔌 Kết nối lại</button><span class="vs-meta" id="vsNet"></span></div>
+ <div id="vsBody"></div></div>`;
+ rtcUi();
+}
+function connState(r){const pc=r&&r.pc;if(!pc)return'none';const a=pc.connectionState,b=pc.iceConnectionState;if(a==='connected'||b==='connected'||b==='completed')return'ok';if(a==='failed'||b==='failed'||a==='closed')return'bad';if(a==='disconnected'||b==='disconnected')return'drop';return'wait'}
+function rtcUi(){
+ const r=R();if(!r||!S)return;const g=id=>$(id);
+ const cs=connState(r),rm=S.room,hasOpp=!!(rm&&rm.guest),camOn=!!r.vTrack,peerCam=!!(r.peer&&r.peer.cam);
+ const rv=g('vsRV'),ro=g('vsRO'),lo=g('vsLO'),lv=g('vsLV'),net=g('vsNet'),rl=g('vsRL');
+ if(rl)rl.textContent=oppName();
+ let msg='';
+ if(!hasOpp)msg='Đang chờ đối thủ vào phòng…';
+ else if(r.err==='signal')msg='⚠️ Firebase Rules chưa cho phép mục <b>rooms/{mã}/signal</b> nên chưa gọi video được. Thêm mục này vào Rules rồi Publish.';
+ else if(cs==='bad')msg='Không kết nối được video (mạng có thể chặn). Bấm “🔌 Kết nối lại”.';
+ else if(cs==='drop')msg='Mất tín hiệu video, đang thử nối lại…';
+ else if(cs!=='ok')msg='<span class="vs-spin"></span>Đang kết nối video…';
+ else if(!peerCam)msg='📷 '+esc(oppName())+' chưa bật camera';
+ else if(r.needTap)msg='👆 Chạm để hiện hình & âm thanh';
+ if(ro){ro.innerHTML=msg;ro.style.display=msg?'flex':'none'}
+ if(rv)rv.style.visibility=(cs==='ok'&&peerCam)?'visible':'hidden';
+ if(lo)lo.style.display=camOn?'none':'flex';
+ if(lv)lv.classList.toggle('mir',r.facing==='user');
+ const bc=g('vsBCam'),bm=g('vsBMic');
+ if(bc){bc.textContent=camOn?'📷 Tắt camera':'📷 Bật camera';bc.classList.toggle('on',camOn);bc.classList.toggle('ghost',false)}
+ if(bm){bm.textContent=r.aTrack?'🎤 Tắt mic':'🎤 Bật mic';bm.classList.toggle('on',!!r.aTrack)}
+ if(net)net.textContent=!hasOpp?'':cs==='ok'?'🟢 Đã kết nối video':cs==='bad'?'🔴 Mất kết nối':cs==='drop'?'🟠 Chập chờn':'🟡 Đang kết nối…';
+ const c=S.c;if(c&&c.phase){const myT=!!c.myTurn,act=['hold','solve','watch','watchWait'].includes(c.phase);const a=g('vsCM'),b=g('vsCR');if(a)a.classList.toggle('act',act&&myT);if(b)b.classList.toggle('act',act&&!myT)}
+}
+function setStatus(){const r=R();if(!r||!S)return;sub('signal').doc('st_'+MYID).set({from:MYID,cam:!!r.vTrack,mic:!!r.aTrack,t:Date.now()}).catch(e=>{r.err='signal';rtcUi();console.warn(e)})}
+function attach(){const r=R();if(!r||!r.pc)return;for(const t of r.pc.getTransceivers()){const kind=t.receiver&&t.receiver.track&&t.receiver.track.kind;const tr=kind==='video'?r.vTrack:kind==='audio'?r.aTrack:null;try{t.sender.replaceTrack(tr||null)}catch(e){console.warn(e)}}}
+function newPc(callId){
+ const r=R();if(r.pc){try{r.pc.close()}catch(e){}}
+ const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});r.pc=pc;r.callId=callId;r.remoteSet=false;r.needTap=false;
+ r.rs=new MediaStream();const rv=$('vsRV');if(rv)rv.srcObject=r.rs;
+ pc.ontrack=e=>{if(R()!==r||r.pc!==pc)return;if(!r.rs.getTracks().includes(e.track))r.rs.addTrack(e.track);const v=$('vsRV');if(v){if(v.srcObject!==r.rs)v.srcObject=r.rs;const p=v.play();if(p&&p.catch)p.catch(()=>{r.needTap=true;rtcUi()})}rtcUi()};
+ pc.onicecandidate=e=>{if(e.candidate&&R()===r&&r.pc===pc)sub('signal').add({from:MYID,callId,kind:'ice',cand:JSON.stringify(e.candidate),t:Date.now()}).catch(x=>{r.err='signal';rtcUi();console.warn(x)})};
+ const upd=()=>{if(R()===r&&r.pc===pc)rtcUi()};
+ pc.onconnectionstatechange=upd;pc.oniceconnectionstatechange=upd;
+ return pc;
+}
+async function flush(){const r=R();if(!r||!r.pc||!r.remoteSet)return;const q=r.q[r.callId]||[];while(q.length){const c=q.shift();try{await r.pc.addIceCandidate(JSON.parse(c))}catch(e){console.warn('ice',e)}}}
+async function startOffer(){
+ const r=R(),ses=S;if(!r||!S.room||!S.room.guest||MYID!==S.room.host)return;
+ const callId='c'+Date.now().toString(36)+rnd(3),pc=newPc(callId);
+ pc.addTransceiver('video',{direction:'sendrecv'});pc.addTransceiver('audio',{direction:'sendrecv'});attach();
+ try{
+  const off=await pc.createOffer();await pc.setLocalDescription(off);
+  if(S!==ses||r.pc!==pc)return;
+  await sub('signal').doc('offer').set({from:MYID,callId,type:'offer',sdp:pc.localDescription.sdp,t:Date.now()});
+ }catch(e){console.warn('offer',e);if(e&&e.code==='permission-denied')r.err='signal'}
+ rtcUi();
+}
+function maybeStart(){const r=R(),rm=S&&S.room;if(!r||!rm)return;if(MYID===rm.host&&rm.guest&&!r.started){r.started=true;startOffer()}rtcUi()}
+async function onSig(ch,init){
+ const r=R();if(!r||!S||!S.room)return;const d=ch.doc.data(),id=ch.doc.id,host=MYID===S.room.host;
+ if(!d||d.from===MYID)return;
+ if(id==='offer'){
+  if(host)return;
+  if(init){r.needRetry=true;return}
+  if(d.callId===r.callId)return;
+  const pc=newPc(d.callId);
+  await pc.setRemoteDescription({type:'offer',sdp:d.sdp});r.remoteSet=true;
+  for(const t of pc.getTransceivers()){try{t.direction='sendrecv'}catch(e){}}
+  attach();
+  const ans=await pc.createAnswer();await pc.setLocalDescription(ans);
+  await sub('signal').doc('answer').set({from:MYID,callId:d.callId,type:'answer',sdp:pc.localDescription.sdp,t:Date.now()});
+  await flush();
+ }else if(id==='answer'){
+  if(!host||init||d.callId!==r.callId||r.remoteSet||!r.pc)return;
+  await r.pc.setRemoteDescription({type:'answer',sdp:d.sdp});r.remoteSet=true;await flush();
+ }else if(id==='retry'){
+  if(!host||init)return;await startOffer();
+ }else if(id.indexOf('st_')===0){
+  r.peer={cam:!!d.cam,mic:!!d.mic};rtcUi();
+ }else if(d.kind==='ice'){
+  (r.q[d.callId]=r.q[d.callId]||[]).push(d.cand);await flush();
+ }
+}
+function rtcListen(onErr){
+ const r=R(),ses=S;let first=true;
+ r.unsub=sub('signal').onSnapshot(q=>{
+  if(S!==ses)return;
+  const init=first;first=false;
+  const ord=x=>x.doc.id==='offer'?0:x.doc.id==='answer'?1:x.doc.id==='retry'?2:x.doc.id.indexOf('st_')===0?3:4;
+  const chs=q.docChanges().filter(c=>c.type!=='removed').sort((a,b)=>ord(a)-ord(b));
+  r.chain=r.chain.then(async()=>{
+   for(const ch of chs){try{await onSig(ch,init)}catch(e){console.warn('rtc',e)}}
+   if(init&&r.needRetry&&S===ses){r.needRetry=false;try{await sub('signal').doc('retry').set({from:MYID,t:Date.now()})}catch(e){console.warn(e)}}
+  });
+ },onErr);
+}
+function rtcClose(){
+ const r=R();if(!r)return;
+ try{r.unsub&&r.unsub()}catch(e){}
+ try{sub('signal').doc('st_'+MYID).set({from:MYID,cam:false,mic:false,t:Date.now()}).catch(()=>{})}catch(e){}
+ try{r.pc&&r.pc.close()}catch(e){}
+ [r.vTrack,r.aTrack].forEach(t=>{try{t&&t.stop()}catch(e){}});
+}
+const mediaErr=e=>{const n=e&&e.name;return n==='NotAllowedError'||n==='SecurityError'?'Bạn đã chặn quyền camera/mic — bấm biểu tượng 🔒 trên thanh địa chỉ để cho phép, rồi thử lại':n==='NotFoundError'||n==='OverconstrainedError'?'Không tìm thấy camera/mic trên thiết bị':n==='NotReadableError'?'Camera/mic đang được ứng dụng khác sử dụng':'Không bật được camera/mic'};
+const canMedia=()=>{if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('Trình duyệt này không cho bật camera (cần mở web bằng https://)');return false}return true};
+function setV(t){const r=R();if(!r)return;if(r.vTrack&&r.vTrack!==t){try{r.vTrack.stop()}catch(e){}}r.vTrack=t;t.onended=()=>{if(R()===r&&r.vTrack===t){r.vTrack=null;const lv=$('vsLV');if(lv)lv.srcObject=null;attach();setStatus();rtcUi()}};const lv=$('vsLV');if(lv){lv.srcObject=new MediaStream([t]);const p=lv.play();if(p&&p.catch)p.catch(()=>{})}attach();setStatus();rtcUi()}
+function stopV(){const r=R();if(!r)return;if(r.vTrack){try{r.vTrack.stop()}catch(e){}r.vTrack=null}const lv=$('vsLV');if(lv)lv.srcObject=null;attach();setStatus();rtcUi()}
+async function getCam(){const r=R();stopTrackOnly();const st=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:r.facing},width:{ideal:960},height:{ideal:720},frameRate:{ideal:30,max:30}},audio:false});setV(st.getVideoTracks()[0])}
+function stopTrackOnly(){const r=R();if(r&&r.vTrack){try{r.vTrack.stop()}catch(e){}}}
+window.vsCam=async()=>{const r=R();if(!r)return;if(r.vTrack)return stopV();if(!canMedia())return;try{await getCam()}catch(e){console.warn(e);toast(mediaErr(e))}};
+window.vsFlip=async()=>{const r=R();if(!r)return;r.facing=r.facing==='user'?'environment':'user';if(!r.vTrack){rtcUi();return toast('Đã chọn camera '+(r.facing==='user'?'trước':'sau')+' — bấm Bật camera')}if(!canMedia())return;try{await getCam()}catch(e){console.warn(e);toast(mediaErr(e));r.facing=r.facing==='user'?'environment':'user'}};
+window.vsMic=async()=>{const r=R();if(!r)return;if(r.aTrack){try{r.aTrack.stop()}catch(e){}r.aTrack=null;attach();setStatus();rtcUi();return}if(!canMedia())return;try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false}),t=st.getAudioTracks()[0];r.aTrack=t;t.onended=()=>{if(R()===r&&r.aTrack===t){r.aTrack=null;attach();setStatus();rtcUi()}};attach();setStatus();rtcUi()}catch(e){console.warn(e);toast(mediaErr(e))}};
+window.vsBig=()=>{const c=$('vsCams');if(c)c.classList.toggle('stack')};
+window.vsTap=()=>{const r=R(),v=$('vsRV');if(!v)return;v.muted=false;const p=v.play();if(p&&p.catch)p.catch(()=>{});if(r){r.needTap=false;rtcUi()}};
+window.vsRetry=async()=>{const r=R();if(!r||!S.room||!S.room.guest)return toast('Chưa có đối thủ trong phòng');r.err='';r.needTap=false;toast('Đang kết nối lại video…');try{if(MYID===S.room.host)await startOffer();else await sub('signal').doc('retry').set({from:MYID,t:Date.now()})}catch(e){console.warn(e);toast(errMsg(e))}rtcUi()};
+
+/* ================= LƯỢT GIẢI ================= */
+function compute(){
+ const rm=S.room,c={rounds:[],wins:{h:0,g:0},phase:'none'};
+ if(!rm)return c;
+ const H=rm.host,G=rm.guest;c.isHost=MYID===H;
+ if(!G){c.phase='lobby';return c}
+ const mineSide=c.isHost?'h':'g';
+ for(let r=1;r<=MAXR;r++){
+  const k=String(r),rh=S.ready[k+'_'+H],rg=S.ready[k+'_'+G],sh=S.solves[k+'_'+H],sg=S.solves[k+'_'+G];
+  let th=tOfDoc(sh),tg=tOfDoc(sg);
+  const loc=S.myLocal[k];
+  if(loc!==undefined){const v=loc==='dnf'?Infinity:loc;if(mineSide==='h'&&th===null)th=v;if(mineSide==='g'&&tg===null)tg=v}
+  const first=r%2===1?'h':'g';
+  if(fin(th)&&fin(tg)){
+   const win=th<tg?'h':tg<th?'g':'draw';
+   c.rounds.push({r,th,tg,win,first});if(win==='h')c.wins.h++;else if(win==='g')c.wins.g++;
+   if(c.wins.h>=rm.firstTo||c.wins.g>=rm.firstTo){c.over=c.wins.h>=rm.firstTo?'h':'g';c.phase='over';return c}
+   continue;
+  }
+  const i={r,k,first,rh,rg,sh,sg,th,tg};c.cur=i;
+  const myR=c.isHost?rh:rg,opR=c.isHost?rg:rh;
+  if(!(rh&&rg)){c.phase=myR?'waitOpp':(opR?'oppReady':'ready');return c}
+  i.scramble=makeScr(rm.type,[S.code,k,rh.nonce,rg.nonce].join('|'));
+  const t1=first==='h'?th:tg,turn=fin(t1)?(first==='h'?'g':'h'):first;
+  i.turn=turn;c.myTurn=turn===mineSide;
+  const tdoc=turn==='h'?sh:sg;
+  c.started=!!tdoc||(c.myTurn&&S.startLocal[k]!==undefined);
+  i.firstT=fin(t1)?t1:null;
+  c.phase=c.myTurn?(c.started?'solve':'hold'):(c.started?'watch':'watchWait');
+  return c;
+ }
+ c.phase='over';c.over=c.wins.h>c.wins.g?'h':c.wins.g>c.wins.h?'g':'';
+ return c;
+}
+const keyOf=c=>[!!S.room,S.room&&S.room.guest,S.room&&S.room.hostName,S.room&&S.room.guestName,c.phase,c.cur&&c.cur.r,c.rounds.length,c.wins.h,c.wins.g,c.myTurn?1:0,c.started?1:0,c.over||'',c.cur&&[c.cur.th,c.cur.tg].join(','),S.err||''].join('|');
+function force(){if(!S)return;S.key='';tick()}
+function tick(){
+ if(!S)return;
+ const c=S.c=compute(),k=keyOf(c);
+ if(k!==S.key){S.key=k;draw(c);rtcUi()}else clock(c);
+}
+
+/* ---------- Giao diện ---------- */
+const who=(c,w)=>w==='draw'?'🤝 Hoà':(w===(c.isHost?'h':'g')?'🎉 Bạn thắng':'😤 '+esc(oppName())+' thắng');
+function draw(c){
+ const o=$('vsOv');if(!o||!S)return;
+ if(!$('vsBody'))buildSkeleton();
+ const top=$('vsTop'),body=$('vsBody'),rm=S.room;
+ if(!rm){body.innerHTML=`<div class="vs-stage"><div class="vs-hint">${S.err?'⚠️ Bị Firebase từ chối ở: <b>'+esc(S.err)+'</b><br>Kiểm tra lại Rules đã Publish đủ mục rooms chưa':'<span class="vs-spin"></span>Đang tải phòng…'}</div><button class="btn ghost" onclick="vsLeave()">Rời phòng</button></div>`;return}
+ const hn=esc(rm.hostName||'Chủ phòng'),gn=esc(rm.guestName||'Khách');
+ const myN=c.isHost?hn:gn,opN=c.isHost?gn:hn;
+ const last=c.rounds[c.rounds.length-1];
+ const lastBanner=()=>{
+  if(!last)return'';
+  const cls=last.win==='draw'?'':(last.win===(c.isHost?'h':'g')?'win':'lose');
+  return`<div class="vs-banner ${cls}">Ván ${last.r}: ${who(c,last.win)} · ${hn} ${fmt(last.th)} — ${fmt(last.tg)} ${gn}</div>`;
+ };
+ const i=c.cur;let st='';
+ const turnName=i?(i.turn==='h'?hn:gn):'';
+ const scrBox=i&&i.scramble?`<div class="vs-scr">${esc(i.scramble)}</div>`:'';
+ const myTime=i?(c.isHost?i.th:i.tg):null,opTime=i?(c.isHost?i.tg:i.th):null;
+ if(c.phase==='lobby'){
+  st=`<div class="vs-hint">Gửi mã này cho bạn bè</div><div class="vs-big" style="letter-spacing:.12em">${esc(S.code)}</div><div><button class="btn" onclick="vsCopy()">🔗 Sao chép link mời</button></div><div class="vs-hint"><span class="vs-spin"></span>Đang chờ đối thủ vào phòng… (bạn có thể bật camera trước)</div>`;
+ }else if(c.phase==='ready'||c.phase==='oppReady'||c.phase==='waitOpp'){
+  const firstName=i.first==='h'?hn:gn;
+  st=`${lastBanner()}<div style="font-size:20px;font-weight:700">Ván ${i.r}</div>${c.phase==='oppReady'?`<div class="vs-banner hot">⚡ ${esc(oppName())} đã sẵn sàng!</div>`:''}<div class="vs-hint">Bật camera để nhìn thấy nhau, cùng xếp cube về trạng thái đã giải. Bấm Sẵn sàng thì scramble hiện cho cả hai. Ván này <b>${firstName}</b> giải trước, người kia xem qua camera rồi đến lượt mình.</div>${c.phase==='waitOpp'?`<div class="vs-hint"><span class="vs-spin"></span>Bạn đã sẵn sàng — chờ ${esc(oppName())}…</div>`:`<div><button class="btn" onclick="vsReady()" style="font-size:20px;padding:14px 34px">✋ Sẵn sàng ván ${i.r}</button></div>`}`;
+ }else if(c.phase==='hold'){
+  st=`<div class="vs-banner hot">👉 Lượt của BẠN · Ván ${i.r}</div>${scrBox}${i.firstT!==null?`<div class="vs-hint">Thời gian cần vượt: <b>${fmt(i.firstT)}</b> (${esc(oppName())})</div>`:''}<div class="vs-tap" onpointerdown="vsPress()"><div class="vs-big" id="vsClock">GIỮ</div><div class="vs-hint" id="vsSub"></div></div><div class="vs-hint">Tráo cube xong thì <b>GIỮ Space</b> (hoặc giữ ngón tay ở đây) đến khi chữ <b style="color:#22c55e">xanh</b>, rồi <b>THẢ</b> là đồng hồ chạy. Nhấn Space hoặc chạm để DỪNG.</div><div><button class="btn ghost" style="padding:6px 14px;font-size:13px" onclick="vsDnf()">Bỏ lượt (DNF)</button></div>`;
+ }else if(c.phase==='solve'){
+  st=`<div class="vs-banner hot">👉 Lượt của BẠN · Ván ${i.r} · ĐANG GIẢI</div>${scrBox}<div class="vs-tap" onpointerdown="vsPress()"><div class="vs-big go" id="vsClock">0.00</div><div class="vs-hint">Nhấn <b>Space</b> hoặc chạm vào đây để DỪNG</div></div><div><button class="btn ghost" style="padding:6px 14px;font-size:13px" onclick="vsDnf()">Bỏ lượt (DNF)</button></div>`;
+ }else if(c.phase==='watchWait'){
+  st=`<div class="vs-banner">👀 Lượt của ${turnName} · Ván ${i.r}</div>${scrBox}${fin(myTime)?`<div class="vs-hint">Thời gian của bạn: <b>${fmt(myTime)}</b></div>`:''}<div class="vs-hint"><span class="vs-spin"></span>Chờ ${esc(oppName())} bắt đầu giải… (xem qua camera phía trên)</div>${!fin(myTime)?'<div class="vs-hint">Tới lượt bạn sẽ tự hiện nút bấm giờ.</div>':''}`;
+ }else if(c.phase==='watch'){
+  st=`<div class="vs-banner hot">👀 ${esc(oppName())} đang giải · Ván ${i.r}</div>${scrBox}<div class="vs-big dim" id="vsClock">≈ 0.00</div>${fin(myTime)?`<div class="vs-hint">Thời gian của bạn: <b>${fmt(myTime)}</b></div>`:'<div class="vs-hint">Xong lượt này sẽ tới lượt của bạn.</div>'}`;
+ }else if(c.phase==='over'){
+  const mw=c.over===(c.isHost?'h':'g');
+  st=c.over?`<div style="font-size:64px">${mw?'🏆':'💪'}</div><div class="vs-big" style="font-size:clamp(28px,7vw,52px)">${mw?'Bạn thắng trận!':esc(oppName())+' thắng trận'}</div><div class="vs-hint">Tỉ số chung cuộc ${c.wins.h} — ${c.wins.g}</div>${lastBanner()}<div><button class="btn" onclick="vsLeave()">Rời phòng</button></div>`:`<div class="vs-big" style="font-size:44px">🤝 Hoà</div><div><button class="btn" onclick="vsLeave()">Rời phòng</button></div>`;
+ }
+ let hist='';
+ if(c.rounds.length)hist=`<div class="vs-hist box"><table><tr><th>Ván</th><th>${hn}</th><th>${gn}</th><th>Kết quả</th></tr>${c.rounds.map(x=>`<tr><td>${x.r}</td><td class="${x.win==='h'?'win':''}">${fmt(x.th)}</td><td class="${x.win==='g'?'win':''}">${fmt(x.tg)}</td><td>${x.win==='draw'?'Hoà':x.win==='h'?hn:gn}</td></tr>`).join('')}</table></div>`;
+ top.innerHTML=`<div class="vs-top"><div><span class="vs-code">⚔️ ${esc(S.code)}</span><div class="vs-meta">${esc(rm.type)} · ai thắng ${rm.firstTo} ván trước · giải lần lượt từng người</div></div><div><button class="btn ghost" onclick="vsCopy()">🔗 Link mời</button> <button class="btn ghost" onclick="vsLeave()">Rời phòng</button></div></div>`;
+ const tn=c.cur&&c.cur.turn;
+ body.innerHTML=`<div class="vs-score"><div class="vs-p ${c.isHost?'me':''} ${tn==='h'?'turn':''}"><div class="n">${hn}${c.isHost?' (bạn)':''}</div><div class="w">${c.wins.h}</div></div><div class="vs-vs">VS</div><div class="vs-p ${c.isHost?'':'me'} ${tn==='g'?'turn':''}"><div class="n">${gn}${c.isHost?'':' (bạn)'}</div><div class="w">${c.wins.g}</div></div></div><div class="vs-stage">${st}</div>${hist}`;
+ clock(c);
+}
+function clock(c){
+ const el=$('vsClock');if(!el||!c.cur)return;const i=c.cur,k=i.k;
+ if(c.phase==='hold'){
+  const sub2=$('vsSub'),h=S.holdAt,ok=h&&Date.now()-h>=HOLD;
+  el.textContent=!h?'GIỮ':ok?'THẢ!':'GIỮ…';el.className='vs-big'+(ok?' go':h?' warn':'');
+  if(sub2)sub2.textContent=h?(ok?'Thả tay để bắt đầu':'Giữ thêm chút nữa…'):'Đặt tay lên cube, tráo xong thì giữ';
+ }else if(c.phase==='solve'){
+  const mine=c.isHost?i.sh:i.sg;
+  let ms;
+  if(S.startLocal[k]!==undefined)ms=performance.now()-S.startLocal[k];
+  else if(mine&&mine.startAt&&mine.startAt.toMillis)ms=Date.now()-mine.startAt.toMillis();
+  else ms=0;
+  el.textContent=fmt(Math.max(0,ms));
+ }else if(c.phase==='watch'){
+  const t0=S.watchT0[k+i.turn]||(S.watchT0[k+i.turn]=Date.now());
+  el.textContent='≈ '+fmt(Date.now()-t0);
+ }
+}
+
+/* ---------- Hành động ---------- */
+window.vsReady=async()=>{
+ const c=S&&S.c;if(!c||!c.cur||(c.phase!=='ready'&&c.phase!=='oppReady'))return;
+ const k=String(c.cur.r);
+ try{await sub('ready').doc(k+'_'+MYID).set({uid:MYID,round:k,nonce:rnd(24),ts:TS()})}
+ catch(e){console.error(e);toast(errMsg(e))}
+};
+const fail=(ses,k,e)=>{if(S===ses){delete ses.stopping[k];delete ses.myLocal[k];delete ses.startLocal[k];force()}console.error(e);toast(errMsg(e))};
+const soRef=k=>sub('solves').doc(k+'_'+MYID);
+window.vsPress=()=>{
+ if(!S||!S.c)return;
+ if(S.c.phase==='solve')return window.vsStop();
+ if(S.c.phase==='hold'&&!S.holdAt)S.holdAt=Date.now();
+};
+window.vsRelease=()=>{
+ if(!S)return;const h=S.holdAt;S.holdAt=0;
+ if(h&&S.c&&S.c.phase==='hold'&&Date.now()-h>=HOLD)startSolve();
+};
+function startSolve(){
+ const i=S.c.cur,k=String(i.r),ses=S;
+ if(S.startLocal[k]!==undefined)return;
+ S.startLocal[k]=performance.now();force();
+ soRef(k).set({uid:MYID,round:k,startAt:TS()}).catch(e=>fail(ses,k,e));
+}
+window.vsStop=()=>{
+ if(!S||!S.c||S.c.phase!=='solve')return;
+ const i=S.c.cur,k=String(i.r),ses=S;if(S.stopping[k])return;
+ const mine=S.c.isHost?i.sh:i.sg;
+ let ms;
+ if(S.startLocal[k]!==undefined)ms=Math.round(performance.now()-S.startLocal[k]);
+ else if(mine&&mine.startAt&&mine.startAt.toMillis)ms=Math.max(0,Math.round(Date.now()-mine.startAt.toMillis()));
+ else return;
+ S.stopping[k]=1;S.myLocal[k]=ms;force();
+ soRef(k).update({endAt:TS(),ms,dnf:false}).catch(e=>fail(ses,k,e));
+};
+window.vsDnf=async()=>{
+ if(!S||!S.c||!['hold','solve'].includes(S.c.phase))return;
+ const i=S.c.cur,k=String(i.r);if(S.stopping[k])return;
+ if(!await cf('Bỏ lượt này và tính DNF?'))return;
+ if(!S||!S.c||!S.c.cur||S.c.cur.r!==i.r||S.stopping[k]||!['hold','solve'].includes(S.c.phase))return;
+ const ses=S,mine=S.c.isHost?i.sh:i.sg,started=!!mine||S.startLocal[k]!==undefined;
+ S.stopping[k]=1;S.myLocal[k]='dnf';force();
+ const p=started?soRef(k).update({endAt:TS(),ms:0,dnf:true}):soRef(k).set({uid:MYID,round:k,startAt:TS(),endAt:TS(),ms:0,dnf:true});
+ p.catch(e=>fail(ses,k,e));
+};
+
+/* ---------- Phím & chạm ---------- */
+const typing=()=>['INPUT','TEXTAREA'].includes((document.activeElement||{}).tagName);
+addEventListener('keydown',e=>{
+ if(e.code!=='Space'||typing())return;
+ if(window.__vsOpen){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat)window.vsPress();return}
+ if(typeof V!=='undefined'&&V==='cuber'){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat&&window.tmDown)window.tmDown()}
+},true);
+addEventListener('keyup',e=>{
+ if(e.code!=='Space'||typing())return;
+ if(window.__vsOpen){e.preventDefault();window.vsRelease();return}
+ if(typeof V!=='undefined'&&V==='cuber'){e.preventDefault();if(window.tmUp)window.tmUp()}
+},true);
+let ptr=false;
+document.addEventListener('pointerdown',e=>{
+ if(window.__vsOpen||typeof V==='undefined'||V!=='cuber')return;
+ const t=e.target&&e.target.closest&&e.target.closest('#timerAction,#timerRead');if(!t)return;
+ ptr=true;if(window.tmDown)window.tmDown();
+});
+addEventListener('pointerup',()=>{if(window.__vsOpen){window.vsRelease();return}if(!ptr)return;ptr=false;if(window.tmUp)window.tmUp()});
+addEventListener('pointercancel',()=>{if(S)S.holdAt=0;if(!ptr)return;ptr=false;if(window.tmCancel)window.tmCancel()});
+addEventListener('blur',()=>{if(S)S.holdAt=0;ptr=false;if(window.tmCancel)window.tmCancel()});
+document.addEventListener('contextmenu',e=>{if(e.target&&e.target.closest&&e.target.closest('#timerAction,#timerRead,.vs-tap'))e.preventDefault()});
+
+/* ---------- Link mời #vs=CODE ---------- */
+(()=>{
+ const m=/#vs=([A-Za-z0-9]{4})/.exec(location.hash);if(!m)return;
+ let n=0;const t=setInterval(()=>{
+  if(++n>60){clearInterval(t);return}
+  if(!fbOK())return;clearInterval(t);
+  try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}
+  if(typeof go==='function')go('cuber');
+  setTimeout(()=>window.vsJoin(m[1]),300);
+ },500);
+})();
 })();
 </script>
 </body></html>
