@@ -600,11 +600,19 @@ const _detail=window.detail;window.detail=function(){_detail();const p=DETAIL;if
 (()=>{
 if(window.__vsLoaded)return;window.__vsLoaded=1;
 const MAXR=30,HOLD=300,CODEC='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-/* STUN miễn phí + TURN công cộng (dự phòng khi mạng chặn kết nối trực tiếp). Muốn ổn định hơn, hãy thay bằng TURN riêng của bạn. */
-const ICE_SERVERS=[
- {urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302']},
- {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}
-];
+/* ====== CẤU HÌNH KẾT NỐI VIDEO ======
+   Gọi video trực tiếp giữa 2 máy thường chỉ chạy khi 2 người cùng mạng hoặc mạng dễ tính.
+   Để chạy được MỌI mạng (4G, wifi khác nhau...) cần máy chủ TURN (miễn phí, KHÔNG cần thẻ):
+   Đăng ký ExpressTURN (gói Free 1 TB/tháng) tại https://www.expressturn.com/signup
+   rồi dán tên đăng nhập + mật khẩu TURN trong trang dashboard vào 2 dòng dưới đây.
+   Xem chi tiết: file huong-dan-turn-mien-phi.md */
+const TURN_USER='';                         // dán "turn username" vào đây
+const TURN_PASS='';                         // dán "turn password" vào đây
+const TURN_HOST='relay1.expressturn.com';   // đổi nếu dashboard ghi máy chủ khác
+const VS_TURN_API='';                       // (tuỳ chọn) link API trả về iceServers, nếu dùng dịch vụ khác
+const VS_TURN=TURN_USER&&TURN_PASS?[{urls:['turn:'+TURN_HOST+':3478?transport=udp','turn:'+TURN_HOST+':3478?transport=tcp','turns:'+TURN_HOST+':443?transport=tcp'],username:TURN_USER,credential:TURN_PASS}]:[];
+const STUN=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478','stun:stun.expressturn.com:3478']}];
+const ICE_SERVERS=[...STUN,...VS_TURN];
 
 /* ---------- Scramble chung ---------- */
 const xmur3=s=>{let h=1779033703^s.length;for(let i=0;i<s.length;i++){h=Math.imul(h^s.charCodeAt(i),3432918353);h=h<<13|h>>>19}return()=>{h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return(h^=h>>>16)>>>0}};
@@ -736,12 +744,12 @@ window.vsJoin=async c=>{
 function enter(code){
  closeLocal();
  const ses=S={code,room:null,ready:{},solves:{},myLocal:{},startLocal:{},startWall:{},stopping:{},watchT0:{},holdAt:0,unsubs:[],key:'',c:null,timer:0,
-  rtc:{pc:null,callId:'',remoteSet:false,q:{},chain:Promise.resolve(),vTrack:null,aTrack:null,facing:'user',peer:null,started:false,needTap:false,err:'',rs:null}};
+  rtc:{pc:null,callId:'',remoteSet:false,q:{},chain:Promise.resolve(),vTrack:null,aTrack:null,facing:'user',peer:null,started:false,needTap:false,err:'',rs:null,ice:ICE_SERVERS,iceP:null,cand:{host:0,srflx:0,relay:0},retries:0,rt:null}};
  try{localStorage.setItem('dcs_vs_room',code)}catch(e){}
  const er=nm=>e=>{console.error('vs lỗi ở',nm,e);if(S===ses){ses.err=(ses.err?ses.err+', ':'')+nm;if(nm==='signal')ses.rtc.err='signal';force();rtcUi()}toast(errMsg(e)+' ['+nm+']')},ref=Rr(code);
  ses.unsubs.push(ref.onSnapshot(d=>{if(S!==ses)return;ses.room=d.exists?d.data():null;force();maybeStart()},er('rooms/'+code)));
  for(const n of['ready','solves'])ses.unsubs.push(ref.collection(n).onSnapshot(q=>{if(S!==ses)return;const m={};q.forEach(x=>m[x.id]=x.data());ses[n]=m;force()},er('rooms/'+code+'/'+n)));
- openOv();buildSkeleton();rtcListen(er('signal'));setStatus();
+ openOv();buildSkeleton();loadIce();rtcListen(er('signal'));setStatus();
  ses.timer=setInterval(tick,40);force();
 }
 function closeLocal(){
@@ -775,7 +783,7 @@ function rtcUi(){
  let msg='';
  if(!hasOpp)msg='Đang chờ đối thủ vào phòng…';
  else if(r.err==='signal')msg='⚠️ Firebase Rules chưa cho phép mục <b>rooms/{mã}/signal</b> nên chưa gọi video được. Thêm mục này vào Rules rồi Publish.';
- else if(cs==='bad')msg='Không kết nối được video (mạng có thể chặn). Bấm “🔌 Kết nối lại”.';
+ else if(cs==='bad')msg='Không kết nối được video: mạng của 1 trong 2 người đang chặn kết nối trực tiếp'+(r.cand&&r.cand.relay?'':' và <b>chưa có máy chủ TURN nào hoạt động</b> (xem hướng dẫn thêm TURN)')+'. Bấm “🔌 Kết nối lại”.';
  else if(cs==='drop')msg='Mất tín hiệu video, đang thử nối lại…';
  else if(cs!=='ok')msg='<span class="vs-spin"></span>Đang kết nối video…';
  else if(!peerCam)msg='📷 '+esc(oppName())+' chưa bật camera';
@@ -787,24 +795,27 @@ function rtcUi(){
  const bc=g('vsBCam'),bm=g('vsBMic');
  if(bc){bc.textContent=camOn?'📷 Tắt camera':'📷 Bật camera';bc.classList.toggle('on',camOn);bc.classList.toggle('ghost',false)}
  if(bm){bm.textContent=r.aTrack?'🎤 Tắt mic':'🎤 Bật mic';bm.classList.toggle('on',!!r.aTrack)}
- if(net)net.textContent=!hasOpp?'':cs==='ok'?'🟢 Đã kết nối video':cs==='bad'?'🔴 Mất kết nối':cs==='drop'?'🟠 Chập chờn':'🟡 Đang kết nối…';
+ if(net){const cd=r.cand||{};net.textContent=!hasOpp?'':(cs==='ok'?'🟢 Đã kết nối video':cs==='bad'?'🔴 Mất kết nối':cs==='drop'?'🟠 Chập chờn':'🟡 Đang kết nối…')+(cs==='ok'||!hasOpp?'':' · ICE host '+(cd.host||0)+' / stun '+(cd.srflx||0)+' / turn '+(cd.relay||0))}
  const c=S.c;if(c&&c.phase){const myT=!!c.myTurn,act=['hold','solve','watch','watchWait'].includes(c.phase);const a=g('vsCM'),b=g('vsCR');if(a)a.classList.toggle('act',act&&myT);if(b)b.classList.toggle('act',act&&!myT)}
 }
 function setStatus(){const r=R();if(!r||!S)return;sub('signal').doc('st_'+MYID).set({from:MYID,cam:!!r.vTrack,mic:!!r.aTrack,t:Date.now()}).catch(e=>{r.err='signal';rtcUi();console.warn(e)})}
 function attach(){const r=R();if(!r||!r.pc)return;for(const t of r.pc.getTransceivers()){const kind=t.receiver&&t.receiver.track&&t.receiver.track.kind;const tr=kind==='video'?r.vTrack:kind==='audio'?r.aTrack:null;try{t.sender.replaceTrack(tr||null)}catch(e){console.warn(e)}}}
+function loadIce(){const r=R();if(!r)return;r.iceP=(async()=>{if(!VS_TURN_API)return;try{const ctl=new AbortController(),t=setTimeout(()=>ctl.abort(),6000);const res=await fetch(VS_TURN_API,{signal:ctl.signal});clearTimeout(t);const j=await res.json();let arr=Array.isArray(j)?j:(j&&Array.isArray(j.iceServers)?j.iceServers:(j&&j.iceServers?[j.iceServers]:[]));arr=arr.map(x=>({...x,urls:[].concat(x.urls||[]).filter(u=>!/:53(\?|$)/.test(u))})).filter(x=>x.urls.length);if(arr.length)r.ice=[...STUN,...VS_TURN,...arr]}catch(e){console.warn('Không lấy được TURN từ API',e)}})()}
 function newPc(callId){
  const r=R();if(r.pc){try{r.pc.close()}catch(e){}}
- const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});r.pc=pc;r.callId=callId;r.remoteSet=false;r.needTap=false;
+ const pc=new RTCPeerConnection({iceServers:r.ice||ICE_SERVERS,iceCandidatePoolSize:2});r.pc=pc;r.callId=callId;r.remoteSet=false;r.needTap=false;r.cand={host:0,srflx:0,relay:0};
  r.rs=new MediaStream();const rv=$('vsRV');if(rv)rv.srcObject=r.rs;
  pc.ontrack=e=>{if(R()!==r||r.pc!==pc)return;if(!r.rs.getTracks().includes(e.track))r.rs.addTrack(e.track);const v=$('vsRV');if(v){if(v.srcObject!==r.rs)v.srcObject=r.rs;const p=v.play();if(p&&p.catch)p.catch(()=>{r.needTap=true;rtcUi()})}rtcUi()};
- pc.onicecandidate=e=>{if(e.candidate&&R()===r&&r.pc===pc)sub('signal').add({from:MYID,callId,kind:'ice',cand:JSON.stringify(e.candidate),t:Date.now()}).catch(x=>{r.err='signal';rtcUi();console.warn(x)})};
- const upd=()=>{if(R()===r&&r.pc===pc)rtcUi()};
+ pc.onicecandidateerror=e=>console.warn('ICE lỗi',e.url,e.errorCode,e.errorText);
+ pc.onicecandidate=e=>{if(e.candidate){const m=/ typ (host|srflx|relay)/.exec(e.candidate.candidate||'');if(m&&r.cand)r.cand[m[1]]++}if(e.candidate&&R()===r&&r.pc===pc)sub('signal').add({from:MYID,callId,kind:'ice',cand:JSON.stringify(e.candidate),t:Date.now()}).catch(x=>{r.err='signal';rtcUi();console.warn(x)})};
+ const upd=()=>{if(R()!==r||r.pc!==pc)return;rtcUi();const cs=connState(r);if(cs==='ok')r.retries=0;else if(cs==='bad'&&r.retries<3&&!r.rt){r.retries++;r.rt=setTimeout(()=>{r.rt=null;if(R()===r&&r.pc===pc&&connState(r)==='bad')vsRetry(true)},1500)}};
  pc.onconnectionstatechange=upd;pc.oniceconnectionstatechange=upd;
  return pc;
 }
 async function flush(){const r=R();if(!r||!r.pc||!r.remoteSet)return;const q=r.q[r.callId]||[];while(q.length){const c=q.shift();try{await r.pc.addIceCandidate(JSON.parse(c))}catch(e){console.warn('ice',e)}}}
 async function startOffer(){
  const r=R(),ses=S;if(!r||!S.room||!S.room.guest||MYID!==S.room.host)return;
+ try{await r.iceP}catch(e){}if(S!==ses)return;
  const callId='c'+Date.now().toString(36)+rnd(3),pc=newPc(callId);
  pc.addTransceiver('video',{direction:'sendrecv'});pc.addTransceiver('audio',{direction:'sendrecv'});attach();
  try{
@@ -822,6 +833,7 @@ async function onSig(ch,init){
   if(host)return;
   if(init){r.needRetry=true;return}
   if(d.callId===r.callId)return;
+  try{await r.iceP}catch(e){}
   const pc=newPc(d.callId);
   await pc.setRemoteDescription({type:'offer',sdp:d.sdp});r.remoteSet=true;
   for(const t of pc.getTransceivers()){try{t.direction='sendrecv'}catch(e){}}
@@ -856,6 +868,7 @@ function rtcListen(onErr){
 function rtcClose(){
  const r=R();if(!r)return;
  try{r.unsub&&r.unsub()}catch(e){}
+ clearTimeout(r.rt);
  try{sub('signal').doc('st_'+MYID).set({from:MYID,cam:false,mic:false,t:Date.now()}).catch(()=>{})}catch(e){}
  try{r.pc&&r.pc.close()}catch(e){}
  [r.vTrack,r.aTrack].forEach(t=>{try{t&&t.stop()}catch(e){}});
@@ -871,7 +884,7 @@ window.vsFlip=async()=>{const r=R();if(!r)return;r.facing=r.facing==='user'?'env
 window.vsMic=async()=>{const r=R();if(!r)return;if(r.aTrack){try{r.aTrack.stop()}catch(e){}r.aTrack=null;attach();setStatus();rtcUi();return}if(!canMedia())return;try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false}),t=st.getAudioTracks()[0];r.aTrack=t;t.onended=()=>{if(R()===r&&r.aTrack===t){r.aTrack=null;attach();setStatus();rtcUi()}};attach();setStatus();rtcUi()}catch(e){console.warn(e);toast(mediaErr(e))}};
 window.vsBig=()=>{const c=$('vsCams');if(c)c.classList.toggle('stack')};
 window.vsTap=()=>{const r=R(),v=$('vsRV');if(!v)return;v.muted=false;const p=v.play();if(p&&p.catch)p.catch(()=>{});if(r){r.needTap=false;rtcUi()}};
-window.vsRetry=async()=>{const r=R();if(!r||!S.room||!S.room.guest)return toast('Chưa có đối thủ trong phòng');r.err='';r.needTap=false;toast('Đang kết nối lại video…');try{if(MYID===S.room.host)await startOffer();else await sub('signal').doc('retry').set({from:MYID,t:Date.now()})}catch(e){console.warn(e);toast(errMsg(e))}rtcUi()};
+window.vsRetry=async quiet=>{const r=R();if(!r||!S.room||!S.room.guest)return quiet===true?0:toast('Chưa có đối thủ trong phòng');if(quiet!==true)r.retries=0;r.err='';r.needTap=false;if(quiet!==true)toast('Đang kết nối lại video…');try{if(MYID===S.room.host)await startOffer();else await sub('signal').doc('retry').set({from:MYID,t:Date.now()})}catch(e){console.warn(e);toast(errMsg(e))}rtcUi()};
 
 /* ================= LƯỢT GIẢI ================= */
 function compute(){
