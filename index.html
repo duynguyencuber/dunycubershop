@@ -757,6 +757,12 @@ function closeLocal(){
  const o=$('vsOv');if(o){o.style.display='none';o.innerHTML=''}window.__vsOpen=false;document.body.style.overflow='';
 }
 function openOv(){let o=$('vsOv');if(!o){o=document.createElement('div');o.id='vsOv';document.body.appendChild(o)}o.style.display='block';window.__vsOpen=true;document.body.style.overflow='hidden'}
+window.vsRematch=async()=>{
+ const ses=S;if(!ses||!ses.room||!ses.room.guest)return toast('Đối thủ đã rời phòng');
+ const cur=+(ses.room.series)||0,ref=Rr(ses.code);
+ try{await ref.firestore.runTransaction(async t=>{const d=await t.get(ref);if(!d.exists)return;if((+(d.data().series)||0)!==cur)return;t.update(ref,{series:cur+1})});
+  toast('🔁 Trận mới bắt đầu — bấm Sẵn sàng')}catch(e){console.error(e);toast(errMsg(e))}
+};
 window.vsLeave=async()=>{if(!await cf('Rời phòng thi đấu?'))return;try{localStorage.removeItem('dcs_vs_room')}catch(e){}closeLocal();const l=$('vsLobby');if(l)l.remove();ensureLobby()};
 window.vsCopy=()=>{if(!S)return;const l=location.origin+location.pathname+'#vs='+S.code;const done=()=>toast('Đã sao chép link mời');try{navigator.clipboard.writeText(l).then(done,()=>prompt('Sao chép link:',l))}catch(e){prompt('Sao chép link:',l)}};
 
@@ -888,17 +894,17 @@ window.vsRetry=async quiet=>{const r=R();if(!r||!S.room||!S.room.guest)return qu
 
 /* ================= LƯỢT GIẢI ================= */
 function compute(){
- const rm=S.room,c={rounds:[],wins:{h:0,g:0},phase:'none'};
+ const rm=S.room,SER=+(S.room&&S.room.series)||0,c={rounds:[],wins:{h:0,g:0},phase:'none'};
  if(!rm)return c;
  const H=rm.host,G=rm.guest;c.isHost=MYID===H;
  if(!G){c.phase='lobby';return c}
  const mineSide=c.isHost?'h':'g';
  for(let r=1;r<=MAXR;r++){
-  const k=String(r),rh=S.ready[k+'_'+H],rg=S.ready[k+'_'+G],sh=S.solves[k+'_'+H],sg=S.solves[k+'_'+G];
+  const k=SER?'s'+SER+'r'+r:String(r),rh=S.ready[k+'_'+H],rg=S.ready[k+'_'+G],sh=S.solves[k+'_'+H],sg=S.solves[k+'_'+G];
   let th=tOfDoc(sh),tg=tOfDoc(sg);
   const loc=S.myLocal[k];
   if(loc!==undefined){const v=loc==='dnf'?Infinity:loc;if(mineSide==='h'&&th===null)th=v;if(mineSide==='g'&&tg===null)tg=v}
-  const first=r%2===1?'h':'g';
+  const first=(r+SER)%2===1?'h':'g';
   if(fin(th)&&fin(tg)){
    const win=th<tg?'h':tg<th?'g':'draw';
    c.rounds.push({r,th,tg,win,first});if(win==='h')c.wins.h++;else if(win==='g')c.wins.g++;
@@ -920,7 +926,7 @@ function compute(){
  c.phase='over';c.over=c.wins.h>c.wins.g?'h':c.wins.g>c.wins.h?'g':'';
  return c;
 }
-const keyOf=c=>[!!S.room,S.room&&S.room.guest,S.room&&S.room.hostName,S.room&&S.room.guestName,c.phase,c.cur&&c.cur.r,c.rounds.length,c.wins.h,c.wins.g,c.myTurn?1:0,c.started?1:0,c.over||'',c.cur&&[c.cur.th,c.cur.tg].join(','),S.err||''].join('|');
+const keyOf=c=>[!!S.room,S.room&&S.room.series,S.room&&S.room.guest,S.room&&S.room.hostName,S.room&&S.room.guestName,c.phase,c.cur&&c.cur.r,c.rounds.length,c.wins.h,c.wins.g,c.myTurn?1:0,c.started?1:0,c.over||'',c.cur&&[c.cur.th,c.cur.tg].join(','),S.err||''].join('|');
 function force(){if(!S)return;S.key='';tick()}
 function tick(){
  if(!S)return;
@@ -962,7 +968,7 @@ function draw(c){
   st=`<div class="vs-banner hot">👀 ${esc(oppName())} đang giải · Ván ${i.r}</div>${scrBox}<div class="vs-big dim" id="vsClock">≈ 0.00</div>${fin(myTime)?`<div class="vs-hint">Thời gian của bạn: <b>${fmt(myTime)}</b></div>`:'<div class="vs-hint">Xong lượt này sẽ tới lượt của bạn.</div>'}`;
  }else if(c.phase==='over'){
   const mw=c.over===(c.isHost?'h':'g');
-  st=c.over?`<div style="font-size:64px">${mw?'🏆':'💪'}</div><div class="vs-big" style="font-size:clamp(28px,7vw,52px)">${mw?'Bạn thắng trận!':esc(oppName())+' thắng trận'}</div><div class="vs-hint">Tỉ số chung cuộc ${c.wins.h} — ${c.wins.g}</div>${lastBanner()}<div><button class="btn" onclick="vsLeave()">Rời phòng</button></div>`:`<div class="vs-big" style="font-size:44px">🤝 Hoà</div><div><button class="btn" onclick="vsLeave()">Rời phòng</button></div>`;
+  st=c.over?`<div style="font-size:64px">${mw?'🏆':'💪'}</div><div class="vs-big" style="font-size:clamp(28px,7vw,52px)">${mw?'Bạn thắng trận!':esc(oppName())+' thắng trận'}</div><div class="vs-hint">Tỉ số chung cuộc ${c.wins.h} — ${c.wins.g}</div>${lastBanner()}<div><button class="btn" onclick="vsRematch()">🔁 Đấu lại</button> <button class="btn ghost" onclick="vsLeave()">Rời phòng</button></div>`:`<div class="vs-big" style="font-size:44px">🤝 Hoà</div><div><button class="btn" onclick="vsRematch()">🔁 Đấu lại</button> <button class="btn ghost" onclick="vsLeave()">Rời phòng</button></div>`;
  }
  let hist='';
  if(c.rounds.length)hist=`<div class="vs-hist box"><table><tr><th>Ván</th><th>${hn}</th><th>${gn}</th><th>Kết quả</th></tr>${c.rounds.map(x=>`<tr><td>${x.r}</td><td class="${x.win==='h'?'win':''}">${fmt(x.th)}</td><td class="${x.win==='g'?'win':''}">${fmt(x.tg)}</td><td>${x.win==='draw'?'Hoà':x.win==='h'?hn:gn}</td></tr>`).join('')}</table></div>`;
@@ -993,7 +999,7 @@ function clock(c){
 /* ---------- Hành động ---------- */
 window.vsReady=async()=>{
  const c=S&&S.c;if(!c||!c.cur||(c.phase!=='ready'&&c.phase!=='oppReady'))return;
- const k=String(c.cur.r);
+ const k=c.cur.k;
  try{await sub('ready').doc(k+'_'+MYID).set({uid:MYID,round:k,nonce:rnd(24),ts:TS()})}
  catch(e){console.error(e);toast(errMsg(e))}
 };
@@ -1009,14 +1015,14 @@ window.vsRelease=()=>{
  if(h&&S.c&&S.c.phase==='hold'&&Date.now()-h>=HOLD)startSolve();
 };
 function startSolve(){
- const i=S.c.cur,k=String(i.r),ses=S;
+ const i=S.c.cur,k=i.k,ses=S;
  if(S.startLocal[k]!==undefined)return;
  S.startLocal[k]=performance.now();force();
  soRef(k).set({uid:MYID,round:k,startAt:TS()}).catch(e=>fail(ses,k,e));
 }
 window.vsStop=()=>{
  if(!S||!S.c||S.c.phase!=='solve')return;
- const i=S.c.cur,k=String(i.r),ses=S;if(S.stopping[k])return;
+ const i=S.c.cur,k=i.k,ses=S;if(S.stopping[k])return;
  const mine=S.c.isHost?i.sh:i.sg;
  let ms;
  if(S.startLocal[k]!==undefined)ms=Math.round(performance.now()-S.startLocal[k]);
@@ -1027,9 +1033,9 @@ window.vsStop=()=>{
 };
 window.vsDnf=async()=>{
  if(!S||!S.c||!['hold','solve'].includes(S.c.phase))return;
- const i=S.c.cur,k=String(i.r);if(S.stopping[k])return;
+ const i=S.c.cur,k=i.k;if(S.stopping[k])return;
  if(!await cf('Bỏ lượt này và tính DNF?'))return;
- if(!S||!S.c||!S.c.cur||S.c.cur.r!==i.r||S.stopping[k]||!['hold','solve'].includes(S.c.phase))return;
+ if(!S||!S.c||!S.c.cur||S.c.cur.k!==i.k||S.stopping[k]||!['hold','solve'].includes(S.c.phase))return;
  const ses=S,mine=S.c.isHost?i.sh:i.sg,started=!!mine||S.startLocal[k]!==undefined;
  S.stopping[k]=1;S.myLocal[k]='dnf';force();
  const p=started?soRef(k).update({endAt:TS(),ms:0,dnf:true}):soRef(k).set({uid:MYID,round:k,startAt:TS(),endAt:TS(),ms:0,dnf:true});
