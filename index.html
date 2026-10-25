@@ -762,9 +762,11 @@ function closeLocal(){
 function openOv(){let o=$('vsOv');if(!o){o=document.createElement('div');o.id='vsOv';document.body.appendChild(o)}o.style.display='block';window.__vsOpen=true;document.body.style.overflow='hidden'}
 window.vsRematch=async()=>{
  const ses=S;if(!ses||!ses.room||!ses.room.guest)return toast('Đối thủ đã rời phòng');
- const cur=+(ses.room.series)||0,ref=Rr(ses.code);
- try{await ref.firestore.runTransaction(async t=>{const d=await t.get(ref);if(!d.exists)return;if((+(d.data().series)||0)!==cur)return;t.update(ref,{series:cur+1})});
-  toast('🔁 Trận mới bắt đầu — bấm Sẵn sàng')}catch(e){console.error(e);toast(errMsg(e))}
+ if(ses.rematching&&Date.now()-ses.rematching<4000)return;ses.rematching=Date.now();
+ const cur=+(ses.room.series)||0;
+ try{await Rr(ses.code).update({series:firebase.firestore.FieldValue.increment(1)});
+  toast('🔁 Trận mới bắt đầu — bấm Sẵn sàng');if(S===ses)force()}
+ catch(e){ses.rematching=0;console.error(e);toast('Không bắt đầu được trận mới: '+errMsg(e))}
 };
 window.vsLeave=async()=>{if(!await cf('Rời phòng thi đấu?'))return;try{localStorage.removeItem('dcs_vs_room')}catch(e){}closeLocal();const l=$('vsLobby');if(l)l.remove();ensureLobby()};
 window.vsCopy=()=>{if(!S)return;const l=location.origin+location.pathname+'#vs='+S.code;const done=()=>toast('Đã sao chép link mời');try{navigator.clipboard.writeText(l).then(done,()=>prompt('Sao chép link:',l))}catch(e){prompt('Sao chép link:',l)}};
